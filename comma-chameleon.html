@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Comma Chameleon!</title>
+<style>
+:root {
+  --bg: #1a2e1a;
+  --card: #1e3a1e;
+  --gold: #f5c842;
+  --coral: #ff6b6b;
+  --mint: #4ecb8d;
+  --sky: #5bb8f5;
+  --ink: #e8f5e8;
+  --soft: #8fa88f;
+  --r: 18px;
+  /* Chameleon color — changes on correct answers */
+  --ch1: #4caf50;   /* main body */
+  --ch2: #2e7d32;   /* dark/shadow */
+  --ch3: #a5d6a7;   /* belly */
+  --ch4: #1b5e20;   /* outline */
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Georgia', serif; background: var(--bg); min-height: 100vh; color: var(--ink); overflow-x: hidden; }
+
+/* ── Stars ── */
+.stars { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.star { position: absolute; border-radius: 50%; background: #90ee90; animation: twinkle ease-in-out infinite; }
+@keyframes twinkle { 0%,100%{opacity:.1} 50%{opacity:.6} }
+
+/* ── Main layout ── */
+.wrap { position: relative; z-index: 10; max-width: 700px; margin: 0 auto; padding: 0 14px 32px; }
+
+/* ── Header / mascot ── */
+.header-area { display: flex; align-items: center; justify-content: center; gap: 0; padding: 18px 0 6px; }
+.cham-svg { width: 130px; flex-shrink: 0; }
+/* Chameleon SVG color parts — transition for color change */
+.ch-body { fill: var(--ch1); transition: fill 0.6s; }
+.ch-dark { fill: var(--ch2); transition: fill 0.6s; }
+.ch-belly { fill: var(--ch3); transition: fill 0.6s; }
+.ch-tail { stroke: var(--ch1); transition: stroke 0.6s; }
+.ch-taildark { stroke: var(--ch2); transition: stroke 0.6s; }
+
+.title-block { line-height: 1.1; }
+.title-line1 { font-size: clamp(2rem, 7vw, 3rem); font-weight: 900; color: var(--mint); letter-spacing: -1px; }
+.title-line1 .comma-char { color: var(--gold); }
+.title-line2 { font-size: clamp(1rem, 3.5vw, 1.4rem); font-weight: 900; color: var(--gold); letter-spacing: 1px; }
+.subtitle { font-size: .82rem; color: var(--soft); font-style: italic; margin-top: 3px; }
+
+/* ── Score bar ── */
+.score-bar { display: flex; justify-content: center; gap: 16px; margin: 10px 0 0; }
+.score-pill { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 5px 18px; font-size: .95rem; font-weight: 700; }
+
+/* ── Card ── */
+.card { background: var(--card); border-radius: var(--r); border: 1px solid rgba(255,255,255,.07); padding: clamp(16px,4vw,28px); box-shadow: 0 8px 32px rgba(0,0,0,.4); margin-top: 12px; }
+
+/* ── Progress ── */
+.progress-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.progress-bar { flex: 1; height: 9px; background: rgba(255,255,255,.1); border-radius: 99px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--mint), var(--gold)); border-radius: 99px; transition: width .5s cubic-bezier(.4,0,.2,1); }
+.progress-label { font-size: .8rem; color: var(--soft); white-space: nowrap; }
+
+/* ── Instruction ── */
+.instruction { text-align: center; font-size: clamp(.85rem,2.8vw,1rem); color: var(--soft); margin-bottom: 14px; font-style: italic; }
+
+/* ── Sentence display ── */
+.sentence-wrap {
+  display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: center; gap: 4px 0;
+  min-height: 80px; padding: 12px 4px;
+  background: rgba(0,0,0,.2); border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.word {
+  font-size: clamp(1.1rem, 4vw, 1.5rem);
+  font-weight: 700; color: var(--ink);
+  padding: 6px 10px; border-radius: 8px;
+  background: rgba(255,255,255,.05);
+  margin: 3px 0;
+  user-select: none; -webkit-user-select: none;
+}
+.word.flash-correct { animation: wordPop .4s ease; }
+.word.flash-wrong   { animation: wordShake .35s ease; }
+@keyframes wordPop   { 0%{transform:scale(1)} 50%{transform:scale(1.12)} 100%{transform:scale(1)} }
+@keyframes wordShake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+
+/* Comma slot — the interactive gap between words */
+.slot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 44px;
+  border: none; background: transparent;
+  cursor: pointer; touch-action: manipulation;
+  position: relative; flex-shrink: 0;
+  border-radius: 8px;
+  transition: background .15s;
+  margin: 3px 0;
+}
+.slot:active { background: rgba(255,255,255,.08); }
+.slot-inner {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 2.5px dashed rgba(143,168,143,.4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; font-weight: 900; color: transparent;
+  transition: all .2s;
+}
+.slot.filled .slot-inner {
+  border-style: solid; border-color: var(--gold);
+  background: rgba(245,200,66,.15);
+  color: var(--gold); font-size: 1.6rem;
+  line-height: 1;
+}
+.slot.reveal-correct .slot-inner {
+  border-color: var(--mint); background: rgba(78,203,141,.2);
+  color: var(--mint);
+}
+.slot.reveal-wrong .slot-inner {
+  border-color: var(--coral); background: rgba(255,107,107,.2);
+  color: var(--coral);
+}
+.slot.should-have .slot-inner {
+  border-color: var(--mint); border-style: solid;
+  background: rgba(78,203,141,.25); color: var(--mint);
+  animation: pulseSlot .5s ease 2;
+}
+@keyframes pulseSlot { 0%,100%{transform:scale(1)} 50%{transform:scale(1.2)} }
+
+/* ── Feedback ── */
+.feedback { text-align: center; font-size: 1rem; font-weight: 700; min-height: 36px; padding: 4px 0; }
+.feedback.correct { color: var(--mint); }
+.feedback.wrong   { color: var(--coral); }
+
+/* ── Check button ── */
+.check-btn {
+  width: 100%; padding: 15px;
+  background: linear-gradient(135deg, #4caf50, #2e7d32);
+  color: white; border: none; border-radius: 14px;
+  font-size: 1.05rem; font-weight: 900; font-family: 'Georgia', serif;
+  cursor: pointer; box-shadow: 0 4px 18px rgba(76,175,80,.4);
+  transition: all .2s; touch-action: manipulation;
+  letter-spacing: .5px;
+}
+.check-btn:active { transform: scale(.97); }
+.check-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.check-btn.next-mode {
+  background: linear-gradient(135deg, var(--sky), #1976d2);
+  box-shadow: 0 4px 18px rgba(91,184,245,.35);
+}
+
+/* ── Celebration ── */
+.celebration {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: linear-gradient(135deg, #0d2010, #1a3a1a);
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 14px; text-align: center; padding: 32px;
+}
+.celebration.show { display: flex; }
+.celeb-emoji { font-size: clamp(3.5rem,12vw,5.5rem); animation: bounce .6s infinite alternate; }
+@keyframes bounce { from{transform:translateY(0)} to{transform:translateY(-14px)} }
+.final-score { font-size: clamp(3rem,12vw,5rem); font-weight: 900; color: var(--gold); line-height: 1; text-shadow: 0 0 30px rgba(245,200,66,.5); }
+.final-sub { font-size: 1.05rem; color: var(--soft); margin-top: -4px; }
+.celeb-title { font-size: clamp(1.8rem,6vw,2.8rem); color: var(--ink); font-weight: 900; }
+.celeb-msg { font-size: .97rem; color: var(--soft); max-width: 380px; line-height: 1.6; }
+.ribbon-wrap { display: none; flex-direction: column; align-items: center; gap: 4px; }
+.ribbon-wrap.show { display: flex; }
+.ribbon-svg { width: 110px; height: 130px; filter: drop-shadow(0 6px 16px rgba(37,99,235,.5)); animation: rPop .55s cubic-bezier(.4,0,.2,1) both; }
+@keyframes rPop { 0%{transform:scale(0) rotate(-15deg)} 70%{transform:scale(1.15) rotate(3deg)} 100%{transform:scale(1) rotate(0)} }
+.ribbon-label { font-size: 1.02rem; font-weight: 700; color: #60a5fa; letter-spacing: 1px; }
+.play-again {
+  padding: 15px 38px; background: linear-gradient(135deg, var(--mint), #1a7a4a);
+  color: #0a2a10; border: none; border-radius: 999px;
+  font-size: 1.05rem; font-weight: 900; font-family: 'Georgia', serif;
+  cursor: pointer; margin-top: 4px; box-shadow: 0 6px 20px rgba(78,203,141,.4);
+  touch-action: manipulation;
+}
+.play-again:active { transform: scale(.97); }
+
+/* ── Confetti ── */
+.cf-piece { position: fixed; z-index: 300; pointer-events: none; animation: cffall linear forwards; border-radius: 2px; }
+@keyframes cffall { 0%{transform:translateY(-10px) rotate(0deg);opacity:1} 100%{transform:translateY(110vh) rotate(720deg);opacity:0} }
+
+@media (max-width: 480px) {
+  .word { font-size: 1rem; padding: 5px 7px; }
+  .slot { width: 28px; }
+}
+</style>
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+
+<div class="wrap">
+  <!-- ── Header ── -->
+  <div class="header-area">
+    <!-- Chameleon SVG: body on right, tail curls left forming a big C, then sweeps down -->
+    <svg class="cham-svg" viewBox="0 0 130 200" xmlns="http://www.w3.org/2000/svg">
+
+      <!-- TAIL: thick path curling from body-rear leftward, forming a C, then sweeping down -->
+      <!-- Outer tail (shadow/darker) -->
+      <path class="ch-taildark"
+        d="M 72 105
+           C 55 112 38 115 28 108
+           C 16 99  14 84  20 72
+           C 26 60  40 55  54 60
+           C 65 64  72 74  70 85
+           C 68 94  60 98  54 95
+           C 49 92  50 85  55 84
+           C 58 83  60 87  58 90"
+        fill="none" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Inner tail (main color) -->
+      <path class="ch-tail"
+        d="M 72 105
+           C 55 112 38 115 28 108
+           C 16 99  14 84  20 72
+           C 26 60  40 55  54 60
+           C 65 64  72 74  70 85
+           C 68 94  60 98  54 95
+           C 49 92  50 85  55 84
+           C 58 83  60 87  58 90"
+        fill="none" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <!-- Tail tip pointing DOWN from body toward sentence area -->
+      <path class="ch-taildark"
+        d="M 78 108 C 82 125 84 145 82 170 C 81 180 78 188 76 195"
+        fill="none" stroke-width="10" stroke-linecap="round"/>
+      <path class="ch-tail"
+        d="M 78 108 C 82 125 84 145 82 170 C 81 180 78 188 76 195"
+        fill="none" stroke-width="7" stroke-linecap="round"/>
+
+      <!-- BODY -->
+      <ellipse class="ch-dark"  cx="90" cy="95" rx="40" ry="26"/>
+      <ellipse class="ch-body"  cx="90" cy="93" rx="38" ry="24"/>
+      <!-- Belly stripe -->
+      <ellipse class="ch-belly" cx="88" cy="97" rx="28" ry="15"/>
+      <!-- Body ridge bumps -->
+      <ellipse class="ch-dark" cx="76" cy="72" rx="6" ry="4"/>
+      <ellipse class="ch-dark" cx="88" cy="69" rx="6" ry="4"/>
+      <ellipse class="ch-dark" cx="100" cy="70" rx="6" ry="4"/>
+      <ellipse class="ch-body" cx="76" cy="71" rx="5" ry="3"/>
+      <ellipse class="ch-body" cx="88" cy="68" rx="5" ry="3"/>
+      <ellipse class="ch-body" cx="100" cy="69" rx="5" ry="3"/>
+
+      <!-- HEAD — pointing right -->
+      <path class="ch-dark" d="M 118 80 Q 135 75 142 90 Q 145 102 135 110 Q 125 116 112 114 L 110 82 Z"/>
+      <path class="ch-body" d="M 118 81 Q 133 77 140 91 Q 143 101 133 109 Q 124 115 112 113 L 111 83 Z"/>
+      <!-- Head belly -->
+      <path class="ch-belly" d="M 115 90 Q 130 88 136 97 Q 134 106 126 110 Q 118 113 113 110 Z" opacity=".7"/>
+      <!-- Casque / crest -->
+      <path class="ch-dark"  d="M 116 80 L 125 68 L 140 78 L 138 82 L 120 78 Z"/>
+      <path class="ch-body"  d="M 117 80 L 125 70 L 138 79 L 137 82 L 120 79 Z"/>
+
+      <!-- EYE — big chameleon eye -->
+      <circle cx="130" cy="90" r="11" fill="#1a1a1a"/>
+      <circle cx="130" cy="90" r="9"  class="ch-body"/>
+      <circle cx="130" cy="90" r="5"  fill="#111"/>
+      <circle cx="133" cy="87" r="2"  fill="white"/>
+      <!-- Eye ring -->
+      <circle cx="130" cy="90" r="11" fill="none" stroke="#111" stroke-width="1.5"/>
+
+      <!-- LEGS — two visible front legs gripping downward -->
+      <path class="ch-dark" d="M 85 116 Q 80 128 74 132 Q 70 133 69 130 Q 70 126 76 124 Q 80 122 82 118 Z"/>
+      <path class="ch-body" d="M 84 116 Q 79 127 74 131 Q 71 132 70 129 Q 71 126 76 123 Q 80 121 82 117 Z"/>
+      <path class="ch-dark" d="M 100 116 Q 106 128 110 132 Q 113 133 114 130 Q 112 126 107 124 Q 103 122 101 118 Z"/>
+      <path class="ch-body" d="M 100 116 Q 105 127 109 131 Q 112 132 113 129 Q 111 126 107 123 Q 103 121 101 117 Z"/>
+
+      <!-- Toe tips -->
+      <circle class="ch-dark" cx="69" cy="131" r="3"/>
+      <circle class="ch-dark" cx="114" cy="131" r="3"/>
+    </svg>
+
+    <!-- Title to the right of the chameleon -->
+    <div class="title-block">
+      <div class="title-line1">Comma<span class="comma-char">,</span></div>
+      <div class="title-line2">CHAMELEON!</div>
+      <div class="subtitle">Tap where the comma belongs!</div>
+    </div>
+  </div>
+
+  <!-- Score -->
+  <div class="score-bar">
+    <div class="score-pill">&#9989; <span id="correctCount">0</span></div>
+    <div class="score-pill">&#10060; <span id="wrongCount">0</span></div>
+  </div>
+
+  <!-- Game card -->
+  <div class="card">
+    <div class="progress-row">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">1 of 20</div>
+    </div>
+
+    <div id="commaBanner" style="display:none;margin-bottom:12px;padding:14px 16px;background:linear-gradient(135deg,#b45309,#92400e);border-radius:14px;border:2px solid #fbbf24;text-align:center;box-shadow:0 4px 18px rgba(180,83,9,.5);">
+      <div style="font-size:1.6rem;line-height:1;">&#9888;&#65039;</div>
+      <div style="font-size:1.05rem;font-weight:900;color:#fde68a;margin-top:4px;letter-spacing:.3px;">This sentence needs <span id="commaCount">2</span> commas!</div>
+      <div style="font-size:.82rem;color:#fcd34d;margin-top:3px;">Tap <span id="commaCount2">two</span> gaps before checking.</div>
+    </div>
+
+    <div class="sentence-wrap" id="sentenceWrap"></div>
+
+    <div class="feedback" id="feedback"></div>
+
+    <button class="check-btn" id="checkBtn" onclick="checkOrNext()">
+      Check My Answer &#10003;
+    </button>
+  </div>
+</div>
+
+<!-- Celebration -->
+<div class="celebration" id="celebration">
+  <div class="celeb-emoji" id="celebEmoji">&#127881;</div>
+  <div class="final-score" id="finalScore"></div>
+  <div class="final-sub">out of 20</div>
+  <div class="ribbon-wrap" id="ribbonWrap">
+    <svg class="ribbon-svg" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="60" cy="52" r="44" fill="#1d4ed8"/>
+      <circle cx="60" cy="52" r="38" fill="#2563eb"/>
+      <circle cx="60" cy="52" r="32" fill="#1d4ed8"/>
+      <polygon points="60,28 65.5,44 82,44 69,54 74,70 60,60 46,70 51,54 38,44 54.5,44" fill="#ffd93d"/>
+      <polygon points="38,90 60,78 60,132 41,119" fill="#1d4ed8"/>
+      <polygon points="82,90 60,78 60,132 79,119" fill="#2563eb"/>
+      <text x="60" y="56" text-anchor="middle" font-size="8.5" font-weight="900" fill="#ffd93d" font-family="Georgia,serif">1ST</text>
+    </svg>
+    <div class="ribbon-label">&#127941; Blue Ribbon! &#127941;</div>
+  </div>
+  <div class="celeb-title" id="celebTitle"></div>
+  <div class="celeb-msg" id="celebMsg"></div>
+  <button class="play-again" onclick="restartGame()">Play Again! &#129422;</button>
+</div>
+
+<script>
+// ── CHAMELEON COLOR PALETTES (change on each correct answer) ──────────────
+const CHAM_COLORS = [
+  { ch1:'#4caf50', ch2:'#2e7d32', ch3:'#a5d6a7' }, // green (default)
+  { ch1:'#e91e63', ch2:'#880e4f', ch3:'#f48fb1' }, // pink
+  { ch1:'#9c27b0', ch2:'#4a148c', ch3:'#ce93d8' }, // purple
+  { ch1:'#2196f3', ch2:'#0d47a1', ch3:'#90caf9' }, // blue
+  { ch1:'#ff9800', ch2:'#e65100', ch3:'#ffcc80' }, // orange
+  { ch1:'#f44336', ch2:'#b71c1c', ch3:'#ef9a9a' }, // red
+  { ch1:'#00bcd4', ch2:'#006064', ch3:'#80deea' }, // teal
+  { ch1:'#8bc34a', ch2:'#33691e', ch3:'#dcedc8' }, // lime
+];
+let colorIdx = 0;
+
+function changeChameleonColor() {
+  colorIdx = (colorIdx + 1) % CHAM_COLORS.length;
+  const c = CHAM_COLORS[colorIdx];
+  const r = document.documentElement.style;
+  r.setProperty('--ch1', c.ch1);
+  r.setProperty('--ch2', c.ch2);
+  r.setProperty('--ch3', c.ch3);
+}
+
+// ── SENTENCES ─────────────────────────────────────────────────────────────
+const ALL = [
+  {w:["Yes","I","would","love","some","cake."],c:[0]},
+  {w:["No","I","have","never","been","to","Japan."],c:[0]},
+  {w:["Well","that","was","quite","a","surprise."],c:[0]},
+  {w:["Oh","I","did","not","know","that."],c:[0]},
+  {w:["Okay","let","us","try","it","your","way."],c:[0]},
+  {w:["Yes","we","can","go","to","the","park."],c:[0]},
+  {w:["No","that","is","not","my","backpack."],c:[0]},
+  {w:["Well","she","did","her","very","best."],c:[0]},
+  {w:["Oh","what","a","beautiful","rainbow!"],c:[0]},
+  {w:["Yes","the","package","arrived","this","morning."],c:[0]},
+  {w:["No","penguins","cannot","fly."],c:[0]},
+  {w:["Well","I","am","not","sure","what","to","do."],c:[0]},
+  {w:["Okay","time","to","get","started."],c:[0]},
+  {w:["Oh","I","cannot","believe","it!"],c:[0]},
+  {w:["Yes","she","finished","all","her","vegetables."],c:[0]},
+  {w:["No","the","library","is","closed","on","Sundays."],c:[0]},
+  {w:["Yes","you","can","have","a","second","helping."],c:[0]},
+  {w:["No","I","did","not","eat","the","last","cookie."],c:[0]},
+  {w:["Well","that","explains","everything."],c:[0]},
+  {w:["Oh","is","that","what","happened?"],c:[0]},
+  {w:["Yes","the","flowers","are","beautiful."],c:[0]},
+  {w:["No","we","cannot","stay","up","late."],c:[0]},
+  {w:["Well","she","was","very","surprised."],c:[0]},
+  {w:["Oh","what","a","lovely","idea."],c:[0]},
+  {w:["Yes","I","finished","my","homework."],c:[0]},
+  {w:["No","that","is","not","the","right","answer."],c:[0]},
+  {w:["Well","I","think","that","is","a","great","plan."],c:[0]},
+  {w:["Oh","I","forgot","my","umbrella!"],c:[0]},
+  {w:["Yes","we","are","going","to","the","beach."],c:[0]},
+  {w:["No","she","has","never","tried","sushi."],c:[0]},
+  {w:["Well","he","did","the","best","he","could."],c:[0]},
+  {w:["Oh","so","that","is","where","I","left","it."],c:[0]},
+  {w:["Yes","the","bus","arrives","at","eight."],c:[0]},
+  {w:["No","we","have","no","more","cookies."],c:[0]},
+  {w:["Well","it","was","a","very","long","day."],c:[0]},
+  {w:["Oh","that","must","have","been","so","scary!"],c:[0]},
+  {w:["Yes","I","would","like","some","more","please."],c:[0]},
+  {w:["No","I","have","never","seen","a","whale."],c:[0]},
+  {w:["Well","nobody","expected","that","to","happen."],c:[0]},
+  {w:["Oh","I","did","not","see","you","there."],c:[0]},
+  {w:["Yes","spring","is","my","favorite","season."],c:[0]},
+  {w:["No","she","does","not","like","mushrooms."],c:[0]},
+  {w:["Well","we","could","try","a","different","way."],c:[0]},
+  {w:["Oh","how","exciting","that","must","have","been!"],c:[0]},
+  {w:["Yes","the","baby","is","sleeping","now."],c:[0]},
+  {w:["No","we","have","never","been","to","Scotland."],c:[0]},
+  {w:["Well","I","suppose","that","makes","sense."],c:[0]},
+  {w:["Oh","your","drawing","is","so","beautiful!"],c:[0]},
+  {w:["Yes","he","passed","his","spelling","test."],c:[0]},
+  {w:["No","you","may","not","have","ice","cream","before","dinner."],c:[0]},
+  {w:["Well","that","is","a","very","good","question."],c:[0]},
+  {w:["Oh","I","spilled","my","juice!"],c:[0]},
+  {w:["Yes","the","train","leaves","at","noon."],c:[0]},
+  {w:["No","cats","cannot","bark."],c:[0]},
+  {w:["Well","we","will","just","have","to","wait","and","see."],c:[0]},
+  {w:["Oh","what","a","mess","this","is."],c:[0]},
+  {w:["Leo","please","stop","running."],c:[0]},
+  {w:["Max","come","inside","now."],c:[0]},
+  {w:["Emma","would","you","like","some","juice?"],c:[0]},
+  {w:["Jake","it","is","time","for","bed."],c:[0]},
+  {w:["Children","please","be","quiet."],c:[0]},
+  {w:["Grandpa","tell","us","a","story!"],c:[0]},
+  {w:["Class","please","open","your","books."],c:[0]},
+  {w:["Sofia","do","you","want","to","play?"],c:[0]},
+  {w:["Lily","the","phone","is","for","you."],c:[0]},
+  {w:["Dad","can","we","have","pizza","tonight?"],c:[0]},
+  {w:["Mom","I","finished","my","homework!"],c:[0]},
+  {w:["Doctor","it","hurts","right","here."],c:[0]},
+  {w:["Friends","I","have","great","news!"],c:[0]},
+  {w:["Everyone","please","sit","down."],c:[0]},
+  {w:["Sam","your","shoelace","is","undone."],c:[0]},
+  {w:["Grandma","can","you","read","me","a","story?"],c:[0]},
+  {w:["Zoe","your","turn","is","next."],c:[0]},
+  {w:["Students","put","away","your","pencils."],c:[0]},
+  {w:["Jack","the","door","is","open."],c:[0]},
+  {w:["Rose","dinner","is","ready."],c:[0]},
+  {w:["Thank","you","Grandma."],c:[1]},
+  {w:["Please","be","quiet","everyone."],c:[2]},
+  {w:["Good","morning","class."],c:[1]},
+  {w:["I","cannot","wait","Grandpa."],c:[2]},
+  {w:["Can","you","help","me","Dad?"],c:[3]},
+  {w:["Thank","you","Mrs.","Brown."],c:[1]},
+  {w:["I","missed","you","Grandma."],c:[2]},
+  {w:["You","did","it","Leo!"],c:[2]},
+  {w:["Happy","birthday","Sofia!"],c:[1]},
+  {w:["Good","night","everyone."],c:[1]},
+  {w:["See","you","tomorrow","class."],c:[2]},
+  {w:["Have","a","great","day","Dad."],c:[3]},
+  {w:["Are","you","ready","Leo?"],c:[2]},
+  {w:["What","do","you","think","Max?"],c:[3]},
+  {w:["You","are","so","clever","Lily."],c:[3]},
+  {w:["I","love","you","Grandma."],c:[2]},
+  {w:["Well","done","everyone."],c:[1]},
+  {w:["That","was","amazing","Jack!"],c:[2]},
+  {w:["We","missed","you","Mom."],c:[2]},
+  {w:["Time","to","go","everyone."],c:[2]},
+  {w:["Come","and","eat","Leo."],c:[2]},
+  {w:["You","first","Emma."],c:[1]},
+  {w:["Sleep","well","Grandpa."],c:[1]},
+  {w:["Good","luck","everyone."],c:[1]},
+  {w:["Watch","out","Leo!"],c:[1]},
+  {w:["Come","here","Leo","and","sit","down."],c:[1,2]},
+  {w:["Hurry","up","Jake","or","we","will","be","late."],c:[1,2]},
+  {w:["Sit","down","Leo","and","listen."],c:[1,2]},
+  {w:["Come","on","everyone","let","us","go."],c:[1,2]},
+  {w:["Run","faster","Emma","you","can","do","it!"],c:[1,2]},
+  {w:["Look","out","Max","there","is","a","puddle!"],c:[1,2]},
+  {w:["Slow","down","Leo","the","floor","is","wet."],c:[1,2]},
+  {w:["Listen","up","class","we","have","an","announcement."],c:[1,2]},
+  {w:["Hurry","along","everyone","the","bus","is","here."],c:[1,2]},
+  {w:["Come","in","Jack","the","water","is","lovely."],c:[1,2]},
+  {w:["When","I","grow","up","I","want","to","be","a","scientist."],c:[3]},
+  {w:["If","it","rains","we","will","play","inside."],c:[2]},
+  {w:["Because","she","practiced","she","got","good."],c:[2]},
+  {w:["When","winter","comes","the","geese","fly","south."],c:[2]},
+  {w:["If","you","finish","early","you","can","read."],c:[3]},
+  {w:["Before","we","eat","we","always","wash","our","hands."],c:[2]},
+  {w:["When","she","woke","up","breakfast","was","ready."],c:[3]},
+  {w:["Because","he","was","kind","everyone","liked","him."],c:[3]},
+  {w:["If","you","are","cold","put","on","a","coat."],c:[3]},
+  {w:["When","the","bell","rings","we","go","to","lunch."],c:[3]},
+  {w:["Before","going","to","bed","brush","your","teeth."],c:[3]},
+  {w:["When","the","snow","falls","everything","looks","white."],c:[3]},
+  {w:["If","you","are","hungry","there","is","food","in","the","fridge."],c:[3]},
+  {w:["Because","it","was","raining","we","stayed","inside."],c:[3]},
+  {w:["When","the","dog","barked","the","cat","ran","away."],c:[3]},
+  {w:["When","the","lights","went","out","everyone","screamed."],c:[4]},
+  {w:["Before","they","left","they","said","goodbye."],c:[2]},
+  {w:["When","it","gets","dark","the","fireflies","come","out."],c:[3]},
+  {w:["If","you","see","a","rainbow","make","a","wish."],c:[4]},
+  {w:["Because","he","was","late","he","had","to","run."],c:[3]},
+  {w:["Before","the","show","everyone","found","their","seats."],c:[2]},
+  {w:["When","the","music","stopped","everyone","sat","down."],c:[3]},
+  {w:["If","the","weather","is","nice","we","will","have","a","picnic."],c:[4]},
+  {w:["Because","she","was","tired","she","went","to","bed","early."],c:[3]},
+  {w:["When","the","lights","came","on","everyone","cheered."],c:[4]},
+  {w:["If","you","mix","red","and","blue","you","get","purple."],c:[5]},
+  {w:["Because","he","studied","hard","he","passed","the","test."],c:[3]},
+  {w:["When","they","arrived","the","food","was","already","cold."],c:[2]},
+  {w:["If","you","are","quiet","you","can","hear","the","birds."],c:[3]},
+  {w:["Because","she","was","helpful","everyone","liked","her."],c:[3]},
+  {w:["When","the","whistle","blew","the","game","began."],c:[4]},
+  {w:["If","you","are","scared","hold","my","hand."],c:[3]},
+  {w:["Because","it","was","cold","she","wore","her","coat."],c:[3]},
+  {w:["When","the","cake","was","ready","they","all","cheered."],c:[4]},
+  {w:["If","you","listen","carefully","you","will","understand."],c:[3]},
+  {w:["Because","the","dog","was","wet","he","dripped","everywhere."],c:[4]},
+  {w:["When","she","finished","reading","she","put","down","the","book."],c:[3]},
+  {w:["If","you","are","brave","you","can","try","anything."],c:[3]},
+  {w:["Because","the","door","was","open","the","cat","got","out."],c:[4]},
+  {w:["When","the","sun","came","out","the","ice","melted."],c:[4]},
+  {w:["After","the","storm","a","rainbow","appeared."],c:[2]},
+  {w:["Before","the","race","he","stretched","his","legs."],c:[2]},
+  {w:["In","the","kitchen","something","smelled","great."],c:[2]},
+  {w:["On","her","birthday","she","got","a","new","bike."],c:[2]},
+  {w:["After","the","game","we","all","had","hot","dogs."],c:[2]},
+  {w:["Under","the","tree","a","rabbit","was","hiding."],c:[2]},
+  {w:["After","breakfast","she","put","on","her","coat."],c:[1]},
+  {w:["During","the","party","the","kids","ate","cake."],c:[2]},
+  {w:["In","the","morning","the","birds","sing."],c:[2]},
+  {w:["At","the","park","the","children","played."],c:[2]},
+  {w:["During","summer","we","go","to","the","beach."],c:[1]},
+  {w:["Last","Saturday","we","went","to","the","museum."],c:[1]},
+  {w:["In","the","evening","Dad","reads","us","a","story."],c:[2]},
+  {w:["On","cold","days","I","like","hot","chocolate."],c:[2]},
+  {w:["After","the","concert","everyone","clapped."],c:[2]},
+  {w:["In","the","garden","the","birds","were","singing."],c:[2]},
+  {w:["Before","the","trip","Dad","packed","the","car."],c:[2]},
+  {w:["After","the","film","we","talked","about","it."],c:[2]},
+  {w:["In","the","afternoon","she","practices","piano."],c:[2]},
+  {w:["Before","the","party","we","blew","up","balloons."],c:[2]},
+  {w:["On","Christmas","morning","we","open","presents."],c:[2]},
+  {w:["After","the","walk","the","dog","was","tired."],c:[2]},
+  {w:["In","the","library","you","must","be","quiet."],c:[2]},
+  {w:["During","the","film","he","fell","asleep."],c:[2]},
+  {w:["On","the","farm","there","were","many","animals."],c:[2]},
+  {w:["After","the","rain","puddles","formed","everywhere."],c:[2]},
+  {w:["Before","the","test","she","studied","hard."],c:[2]},
+  {w:["After","the","trip","we","were","very","tired."],c:[2]},
+  {w:["Before","the","match","the","players","warmed","up."],c:[2]},
+  {w:["During","the","summer","holidays","we","visited","France."],c:[3]},
+  {w:["After","the","picnic","we","played","in","the","park."],c:[2]},
+  {w:["Before","the","storm","the","sky","turned","dark."],c:[2]},
+  {w:["After","feeding","the","cat","she","washed","her","hands."],c:[3]},
+  {w:["In","the","forest","the","trees","were","very","tall."],c:[2]},
+  {w:["Before","the","sun","set","we","took","a","photo."],c:[3]},
+  {w:["After","the","exam","the","children","went","outside."],c:[2]},
+  {w:["After","a","long","hike","we","sat","by","the","river."],c:[3]},
+  {w:["On","a","clear","night","you","can","see","the","stars."],c:[3]},
+  {w:["On","a","hot","day","a","cold","drink","is","perfect."],c:[3]},
+  {w:["In","the","middle","of","the","night","she","woke","up."],c:[5]},
+  {w:["On","the","last","day","of","school","we","had","a","party."],c:[5]},
+  {w:["After","the","ice","cream","melted","she","was","sad."],c:[4]},
+  {w:["On","her","first","day","of","school","she","was","nervous."],c:[5]},
+  {w:["After","reading","the","letter","she","smiled."],c:[2]},
+  {w:["During","the","storm","we","sat","by","the","fire."],c:[2]},
+  {w:["During","the","winter","we","wore","thick","coats."],c:[2]},
+  {w:["After","supper","we","played","a","board","game."],c:[1]},
+  {w:["After","the","lesson","the","class","went","outside."],c:[2]},
+  {w:["After","scoring","the","goal","he","cheered."],c:[3]},
+  {w:["In","the","end","she","found","her","keys."],c:[2]},
+  {w:["Before","you","leave","say","goodbye."],c:[2]},
+  {w:["After","getting","dressed","she","went","downstairs."],c:[2]},
+  {w:["On","most","mornings","he","has","toast","for","breakfast."],c:[2]},
+  {w:["Before","the","holidays","the","teacher","gave","them","homework."],c:[2]},
+  {w:["On","Monday","morning","we","have","maths."],c:[2]},
+  {w:["In","the","morning","she","drinks","a","glass","of","water."],c:[2]},
+  {w:["After","the","holidays","we","went","back","to","school."],c:[2]},
+  {w:["After","playing","outside","she","was","very","muddy."],c:[2]},
+  {w:["On","the","way","home","we","stopped","for","ice","cream."],c:[3]},
+  {w:["In","autumn","the","leaves","turn","orange","and","red."],c:[1]},
+  {w:["Before","the","sun","rose","she","was","already","awake."],c:[3]},
+  {w:["After","the","birthday","cake","was","cut","everyone","cheered."],c:[5]},
+  {w:["During","the","long","journey","the","children","played","games."],c:[3]},
+  {w:["After","the","heavy","rain","the","river","flooded."],c:[3]},
+  {w:["Before","the","test","she","checked","her","answers."],c:[2]},
+  {w:["After","the","long","meeting","everyone","was","tired."],c:[3]},
+  {w:["During","the","night","snow","had","fallen."],c:[2]},
+  {w:["Before","the","concert","the","musicians","tuned","their","instruments."],c:[2]},
+  {w:["After","the","earthquake","the","town","was","rebuilt."],c:[2]},
+  {w:["During","the","school","play","she","forgot","her","lines."],c:[3]},
+  {w:["Before","the","journey","she","packed","her","suitcase."],c:[2]},
+  {w:["After","the","long","winter","spring","finally","arrived."],c:[4]},
+  {w:["While","she","slept","the","snow","began","to","fall."],c:[2]},
+  {w:["While","he","read","his","sister","played","outside."],c:[2]},
+  {w:["While","the","cat","napped","the","mice","played."],c:[3]},
+  {w:["While","it","rained","we","played","board","games."],c:[2]},
+  {w:["Although","she","was","tired","she","finished","her","homework."],c:[3]},
+  {w:["Although","it","was","cold","they","went","for","a","walk."],c:[3]},
+  {w:["Although","he","was","nervous","he","spoke","clearly."],c:[3]},
+  {w:["Since","the","weather","was","good","they","went","outside."],c:[4]},
+  {w:["Once","the","sun","set","the","stars","appeared."],c:[3]},
+  {w:["Once","she","finished","her","chores","she","went","to","play."],c:[4]},
+  {w:["I","wanted","to","stay","but","it","was","late."],c:[3]},
+  {w:["She","was","tired","but","she","kept","going."],c:[2]},
+  {w:["I","like","cats","but","my","sister","likes","dogs."],c:[2]},
+  {w:["We","ran","fast","but","we","missed","the","bus."],c:[2]},
+  {w:["She","practiced","every","day","and","she","won."],c:[3]},
+  {w:["The","rain","stopped","and","the","sun","came","out."],c:[2]},
+  {w:["We","could","take","the","bus","or","we","could","walk."],c:[4]},
+  {w:["I","finished","dinner","but","I","was","still","hungry."],c:[2]},
+  {w:["She","opened","the","box","and","she","gasped."],c:[3]},
+  {w:["I","love","swimming","but","I","am","scared","of","the","deep","end."],c:[2]},
+  {w:["He","cleaned","his","room","and","Mom","was","pleased."],c:[3]},
+  {w:["The","movie","was","long","but","it","was","exciting."],c:[3]},
+  {w:["She","washed","the","dishes","and","he","dried","them."],c:[3]},
+  {w:["The","cat","was","hungry","but","her","bowl","was","empty."],c:[3]},
+  {w:["He","wanted","to","swim","but","the","pool","was","closed."],c:[3]},
+  {w:["She","read","the","book","and","she","loved","it."],c:[3]},
+  {w:["The","dog","barked","but","the","postman","was","not","scared."],c:[2]},
+  {w:["She","called","her","friend","but","no","one","answered."],c:[3]},
+  {w:["He","wanted","to","help","but","he","did","not","know","how."],c:[3]},
+  {w:["The","sun","was","hot","but","the","breeze","was","cool."],c:[3]},
+  {w:["She","packed","her","bag","and","she","set","off."],c:[3]},
+  {w:["I","wanted","to","help","but","I","was","too","late."],c:[3]},
+  {w:["She","forgot","her","lunch","but","her","friend","shared."],c:[3]},
+  {w:["They","worked","hard","and","they","finished","on","time."],c:[2]},
+  {w:["She","wanted","a","cat","but","her","dad","said","no."],c:[3]},
+  {w:["We","missed","the","show","but","we","watched","it","later."],c:[3]},
+  {w:["She","tripped","but","she","quickly","got","back","up."],c:[2]},
+  {w:["She","called","out","but","nobody","came."],c:[2]},
+  {w:["He","smiled","and","she","smiled","back."],c:[2]},
+  {w:["We","could","stay","here","or","we","could","explore."],c:[3]},
+  {w:["She","opened","the","window","and","fresh","air","came","in."],c:[3]},
+  {w:["I","tried","my","best","but","the","puzzle","was","too","hard."],c:[3]},
+  {w:["He","was","nervous","but","he","walked","up","to","the","stage."],c:[2]},
+  {w:["He","tripped","on","the","step","but","he","did","not","fall."],c:[4]},
+  {w:["I","tried","to","lift","it","but","it","was","too","heavy."],c:[4]},
+  {w:["He","ate","his","dinner","but","he","did","not","want","dessert."],c:[3]},
+  {w:["She","knocked","on","the","door","but","nobody","answered."],c:[4]},
+  {w:["He","ran","as","fast","as","he","could","but","he","was","still","last."],c:[7]},
+  {w:["She","tried","on","the","shoes","but","they","were","too","small."],c:[4]},
+  {w:["They","searched","everywhere","but","the","keys","were","gone."],c:[2]},
+  {w:["He","opened","his","mouth","but","no","words","came","out."],c:[3]},
+  {w:["She","reached","for","the","apple","but","it","was","too","high."],c:[4]},
+  {w:["The","sky","grew","dark","and","the","wind","began","to","blow."],c:[3]},
+  {w:["She","raised","her","hand","and","the","teacher","called","on","her."],c:[3]},
+  {w:["The","bird","sang","and","the","whole","garden","seemed","to","listen."],c:[2]},
+  {w:["He","pressed","the","button","and","the","door","swung","open."],c:[3]},
+  {w:["The","puppy","wagged","its","tail","and","everyone","laughed."],c:[4]},
+  {w:["She","took","a","deep","breath","and","she","jumped","in."],c:[4]},
+  {w:["The","ice","cracked","and","they","all","stepped","back."],c:[2]},
+  {w:["He","turned","the","key","and","the","engine","roared","to","life."],c:[3]},
+  {w:["She","looked","at","the","map","but","she","was","still","lost."],c:[4]},
+  {w:["The","cat","jumped","onto","the","table","but","the","glass","did","not","fall."],c:[5]},
+  {w:["He","wrote","the","letter","but","he","never","sent","it."],c:[3]},
+  {w:["She","waved","goodbye","and","she","walked","out","the","door."],c:[2]},
+  {w:["He","checked","his","pockets","but","his","phone","was","gone."],c:[3]},
+  {w:["We","could","go","to","the","park","or","we","could","bake","a","cake."],c:[5]},
+  {w:["She","closed","her","eyes","and","she","made","a","wish."],c:[3]},
+  {w:["He","cleared","his","throat","and","everyone","looked","up."],c:[3]},
+  {w:["She","held","out","her","hand","and","the","bird","landed","on","it."],c:[5]},
+  {w:["They","were","late","but","the","show","had","not","yet","started."],c:[2]},
+  {w:["We","need","eggs","milk","and","butter."],c:[2,3]},
+  {w:["She","is","kind","funny","and","smart."],c:[2,3]},
+  {w:["I","like","reading","drawing","and","singing."],c:[2,3]},
+  {w:["My","colors","are","red","yellow","and","green."],c:[3,4]},
+  {w:["The","puppy","is","fluffy","playful","and","loud."],c:[3,4]},
+  {w:["She","wore","a","hat","a","scarf","and","mittens."],c:[3,5]},
+  {w:["He","ran","jumped","and","rolled","down","the","hill."],c:[1,2]},
+  {w:["We","could","go","swimming","hiking","or","cycling."],c:[3,4]},
+  {w:["She","planted","roses","tulips","and","sunflowers."],c:[2,3]},
+  {w:["I","brushed","my","teeth","combed","my","hair","and","got","dressed."],c:[3,6]},
+  {w:["The","playground","has","swings","slides","and","monkey","bars."],c:[3,4]},
+  {w:["We","bought","eggs","milk","and","bread."],c:[2,3]},
+  {w:["The","dog","barked","wagged","and","ran","in","circles."],c:[2,3]},
+  {w:["She","bought","apples","pears","and","grapes."],c:[2,3]},
+  {w:["He","likes","football","tennis","and","swimming."],c:[2,3]},
+  {w:["The","recipe","needs","flour","sugar","and","eggs."],c:[3,4]},
+  {w:["She","speaks","French","Spanish","and","Italian."],c:[2,3]},
+  {w:["The","zoo","had","lions","tigers","and","bears."],c:[3,4]},
+  {w:["She","was","kind","patient","and","generous."],c:[2,3]},
+  {w:["We","visited","Rome","Paris","and","Madrid."],c:[2,3]},
+  {w:["The","bag","was","heavy","bulky","and","hard","to","carry."],c:[3,4]},
+  {w:["She","washed","her","face","brushed","her","hair","and","got","dressed."],c:[3,6]},
+  {w:["He","skipped","danced","and","laughed","all","the","way","home."],c:[1,2]},
+  {w:["She","smiled","waved","and","walked","away."],c:[1,2]},
+  {w:["He","ate","showered","and","went","to","bed."],c:[1,2]},
+  {w:["The","sky","was","blue","bright","and","beautiful."],c:[3,4]},
+  {w:["She","likes","cats","dogs","and","hamsters."],c:[2,3]},
+  {w:["The","children","sang","danced","and","clapped."],c:[2,3]},
+  {w:["He","is","tall","dark","and","handsome."],c:[2,3]},
+  {w:["She","collected","stamps","coins","and","stickers."],c:[2,3]},
+  {w:["The","meal","had","soup","bread","and","salad."],c:[3,4]},
+  {w:["She","is","good","at","maths","reading","and","art."],c:[4,5]},
+  {w:["The","forest","had","oaks","pines","and","birches."],c:[3,4]},
+  {w:["They","painted","drew","and","made","models."],c:[1,2]},
+  {w:["The","pond","had","ducks","frogs","and","fish."],c:[3,4]},
+  {w:["She","wrote","drew","and","painted","every","day."],c:[1,2]},
+  {w:["He","jumped","swam","and","cycled","in","the","race."],c:[1,2]},
+  {w:["The","baby","laughed","clapped","and","kicked."],c:[2,3]},
+  {w:["Her","favorite","foods","are","pizza","pasta","and","soup."],c:[4,5]},
+  {w:["We","could","read","draw","or","play","a","game."],c:[2,3]},
+  {w:["She","was","brave","clever","and","kind."],c:[2,3]},
+  {w:["The","shop","sold","hats","scarves","and","gloves."],c:[3,4]},
+  {w:["He","was","tired","hungry","and","cold."],c:[2,3]},
+  {w:["The","kitten","purred","stretched","and","went","to","sleep."],c:[2,3]},
+  {w:["She","visited","Paris","Venice","and","Amsterdam."],c:[2,3]},
+  {w:["The","school","bag","held","books","pencils","and","pens."],c:[4,5]},
+  {w:["She","had","blue","eyes","red","hair","and","freckles."],c:[3,5]},
+  {w:["Her","room","had","a","bed","a","desk","and","a","wardrobe."],c:[4,6]},
+  {w:["She","packed","her","bag","said","goodbye","and","left."],c:[3,5]},
+  {w:["We","need","a","pen","some","paper","and","an","envelope."],c:[3,5]},
+  {w:["The","meal","was","hot","fresh","and","delicious."],c:[3,4]},
+  {w:["My","favorite","subjects","are","maths","science","and","art."],c:[4,5]},
+  {w:["He","is","good","at","running","jumping","and","climbing."],c:[4,5]},
+  {w:["She","was","cold","wet","and","muddy."],c:[2,3]},
+  {w:["The","story","was","funny","exciting","and","long."],c:[3,4]},
+  {w:["The","boat","rocked","dipped","and","swayed."],c:[2,3]},
+  {w:["We","swam","sunbathed","and","built","sandcastles."],c:[1,2]},
+  {w:["She","is","honest","hardworking","and","cheerful."],c:[2,3]},
+  {w:["The","garden","had","roses","daisies","and","tulips."],c:[3,4]},
+  {w:["He","is","a","great","runner","swimmer","and","climber."],c:[4,5]},
+  {w:["The","box","held","crayons","pencils","and","markers."],c:[3,4]},
+  {w:["She","laughed","clapped","and","cheered."],c:[1,2]},
+  {w:["The","soup","had","carrots","peas","and","beans."],c:[3,4]},
+  {w:["She","is","funny","kind","and","brave."],c:[2,3]},
+  {w:["He","rode","his","bike","fed","the","dog","and","did","his","homework."],c:[4,7]},
+  {w:["She","baked","a","cake","wrapped","a","gift","and","wrote","a","card."],c:[3,6]},
+  {w:["They","cleaned","the","house","cooked","dinner","and","set","the","table."],c:[2,4]},
+  {w:["My","dog","Max","loves","to","chase","squirrels."],c:[1,2]},
+  {w:["My","cat","Muffin","sleeps","all","afternoon."],c:[1,2]},
+  {w:["My","best","friend","Zoe","moved","away."],c:[2,3]},
+  {w:["My","hamster","Pumpkin","loves","to","eat","carrots."],c:[1,2]},
+  {w:["My","rabbit","Snowball","hops","everywhere."],c:[1,2]},
+  {w:["My","goldfish","Bubbles","swims","in","circles."],c:[1,2]},
+  {w:["My","teacher","Miss","Lee","is","very","kind."],c:[1,3]},
+  {w:["Our","cat","Mango","is","very","playful."],c:[1,2]},
+  {w:["My","sister","Ella","loves","to","bake","cakes."],c:[1,2]},
+  {w:["Our","dog","Bruno","runs","very","fast."],c:[1,2]},
+  {w:["My","cousin","Sam","is","a","great","swimmer."],c:[1,2]},
+  {w:["Her","turtle","Speedy","sleeps","all","day."],c:[1,2]},
+  {w:["My","parrot","Polly","can","say","three","words."],c:[1,2]},
+  {w:["Our","neighbor","Lisa","bakes","wonderful","bread."],c:[1,2]},
+  {w:["My","uncle","Tom","is","a","firefighter."],c:[1,2]},
+  {w:["The","horse","Shadow","won","the","race."],c:[1,2]},
+  {w:["My","puppy","Biscuit","chewed","my","shoe."],c:[1,2]},
+  {w:["Our","cat","Luna","is","completely","black."],c:[1,2]},
+  {w:["My","grandfather","Bill","tells","great","stories."],c:[1,2]},
+  {w:["My","little","brother","Tommy","is","very","loud."],c:[2,3]},
+  {w:["Her","best","friend","Mia","moved","to","Canada."],c:[2,3]},
+  {w:["The","old","cat","Whiskers","sat","by","the","fire."],c:[2,3]},
+  {w:["My","baby","sister","Rose","just","learned","to","walk."],c:[2,3]},
+  {w:["The","hamster","Cookie","loves","to","run","on","her","wheel."],c:[1,2]},
+  {w:["My","big","brother","Alex","is","in","high","school."],c:[2,3]},
+  {w:["Our","school","bus","driver","Mr.","Hill","is","always","cheerful."],c:[3,5]},
+  {w:["My","neighbor","Mr.","Park","grows","tomatoes."],c:[1,3]},
+  {w:["The","old","dog","Buster","slept","by","the","fire."],c:[2,3]},
+  {w:["My","pet","lizard","Spike","likes","to","sit","in","the","sun."],c:[2,3]},
+  {w:["Our","hamster","Hazel","likes","to","burrow."],c:[1,2]},
+  {w:["Her","horse","Blaze","runs","like","the","wind."],c:[1,2]},
+  {w:["My","aunt","Clara","makes","the","best","pie."],c:[1,2]},
+  {w:["The","tiny","mouse","Pip","lived","under","the","floorboards."],c:[2,3]},
+  {w:["Our","teacher","Mr.","Green","loves","science."],c:[1,3]},
+  {w:["My","friend","Tomas","just","got","a","new","bike."],c:[1,2]},
+  {w:["Our","bus","driver","Mr.","Cole","is","always","on","time."],c:[2,4]},
+  {w:["My","cat","Oscar","only","eats","tuna."],c:[1,2]},
+  {w:["The","young","fox","Rusty","lived","near","the","pond."],c:[2,3]},
+  {w:["My","grandmother","Nana","Pat","makes","amazing","cookies."],c:[1,3]},
+  {w:["Her","dog","Pepper","barks","at","everything."],c:[1,2]},
+];
+
+// ── GAME STATE ────────────────────────────────────────────────────────────
+const GS = 20, RIBBON = 17;
+let questions=[], cur=0, correct=0, wrong=0, answered=false, inNextMode=false;
+
+function shuf(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=0|Math.random()*(i+1);[b[i],b[j]]=[b[j],b[i]];}return b;}
+
+function startGame(){
+  questions=shuf([...ALL]).slice(0,GS);
+  cur=0;correct=0;wrong=0;
+  updateSB();renderQ();
+}
+
+function updateSB(){
+  document.getElementById('correctCount').textContent=correct;
+  document.getElementById('wrongCount').textContent=wrong;
+}
+
+function renderQ(){
+  answered=false;inNextMode=false;
+  const q=questions[cur];
+  document.getElementById('progressFill').style.width=(cur/GS*100)+'%';
+  document.getElementById('progressLabel').textContent=(cur+1)+' of '+GS;
+  document.getElementById('feedback').textContent='';
+  document.getElementById('feedback').className='feedback';
+
+  // Update check button
+  const btn=document.getElementById('checkBtn');
+  btn.textContent='Check My Answer \u2713';
+  btn.className='check-btn';
+  btn.disabled=false;
+
+  // Show/hide the 2-comma warning banner
+  const numCommas=q.c.length;
+  const banner=document.getElementById('commaBanner');
+  if(numCommas>1){
+    banner.style.display='block';
+    document.getElementById('commaCount').textContent=numCommas;
+    const words2=['two','three','four'];
+    document.getElementById('commaCount2').textContent=words2[numCommas-2]||numCommas;
+  } else {
+    banner.style.display='none';
+  }
+
+  // Build sentence
+  const wrap=document.getElementById('sentenceWrap');
+  wrap.innerHTML='';
+  q.w.forEach((word,i)=>{
+    // Slot before first word? No. Slot between word i-1 and word i:
+    // We add slot after each word except the last
+    const wEl=document.createElement('span');
+    wEl.className='word';
+    wEl.textContent=word;
+    wrap.appendChild(wEl);
+    if(i<q.w.length-1){
+      const slot=document.createElement('button');
+      slot.className='slot';
+      slot.dataset.idx=i;
+      slot.setAttribute('aria-label','comma slot after '+word);
+      const inner=document.createElement('span');
+      inner.className='slot-inner';
+      inner.textContent=',';
+      slot.appendChild(inner);
+      slot.addEventListener('click',toggleSlot);
+      slot.addEventListener('touchend',e=>{e.preventDefault();toggleSlot.call(slot,e);});
+      wrap.appendChild(slot);
+    }
+  });
+}
+
+function toggleSlot(){
+  if(answered)return;
+  this.classList.toggle('filled');
+}
+
+function checkOrNext(){
+  if(inNextMode){advanceGame();return;}
+  doCheck();
+}
+
+function doCheck(){
+  const q=questions[cur];
+  answered=true;
+
+  // Gather which slots are filled
+  const filled=[];
+  document.querySelectorAll('.slot.filled').forEach(s=>filled.push(parseInt(s.dataset.idx)));
+
+  // Compare
+  const required=[...q.c].sort((a,b)=>a-b);
+  const placed=filled.sort((a,b)=>a-b);
+  const isCorrect=JSON.stringify(required)===JSON.stringify(placed);
+
+  if(isCorrect){
+    correct++;
+    changeChameleonColor();
+    const praise=['Great job! &#127822;','You got it! &#127881;','Perfect! &#11088;','Brilliant! &#129422;','Spot on! &#127808;','Nailed it! &#10024;'];
+    document.getElementById('feedback').innerHTML=praise[0|Math.random()*praise.length];
+    document.getElementById('feedback').className='feedback correct';
+    // Flash words green
+    document.querySelectorAll('.word').forEach(w=>{
+      w.classList.add('flash-correct');
+      setTimeout(()=>w.classList.remove('flash-correct'),400);
+    });
+    // Mark correct slots
+    document.querySelectorAll('.slot.filled').forEach(s=>s.classList.add('reveal-correct'));
+  } else {
+    wrong++;
+    const tries=['Not quite — here is where it goes! &#128190;','Close! Here is the correct spot &#128190;','Almost! The comma belongs here &#128190;'];
+    document.getElementById('feedback').innerHTML=tries[0|Math.random()*tries.length];
+    document.getElementById('feedback').className='feedback wrong';
+    // Mark filled slots as wrong, show correct positions
+    document.querySelectorAll('.slot.filled').forEach(s=>{
+      if(!required.includes(parseInt(s.dataset.idx))){
+        s.classList.add('reveal-wrong');s.classList.remove('filled');
+      }
+    });
+    // Show where commas should have been
+    required.forEach(idx=>{
+      const slot=document.querySelector(`.slot[data-idx="${idx}"]`);
+      if(slot&&!slot.classList.contains('filled')){
+        slot.classList.add('should-have');
+      }
+    });
+    // Disable all slots
+    document.querySelectorAll('.slot').forEach(s=>s.style.pointerEvents='none');
+  }
+
+  updateSB();
+  // Switch button to Next
+  const btn=document.getElementById('checkBtn');
+  btn.textContent=cur<GS-1?'Next Sentence \u2192':'See My Score! \uD83C\uDFC6';
+  btn.className='check-btn next-mode';
+  inNextMode=true;
+}
+
+function advanceGame(){
+  cur++;
+  if(cur>=GS){showCelebration();}
+  else{renderQ();}
+}
+
+function showCelebration(){
+  document.getElementById('finalScore').textContent=correct;
+  const ov=document.getElementById('celebration');
+  if(correct>=RIBBON){
+    document.getElementById('celebEmoji').textContent='\uD83C\uDFC6';
+    document.getElementById('celebTitle').textContent='Blue Ribbon!';
+    document.getElementById('celebMsg').textContent=correct+' out of 20 — your comma game is incredible! You\'re a punctuation champion! &#129422;';
+    document.getElementById('ribbonWrap').classList.add('show');
+    launchConfetti();
+  } else if(correct>=14){
+    document.getElementById('celebEmoji').textContent='\uD83C\uDF1F';
+    document.getElementById('celebTitle').textContent='Great Work!';
+    document.getElementById('celebMsg').textContent=correct+' out of 20 — you\'re getting really good! Try again to earn your blue ribbon!';
+    document.getElementById('ribbonWrap').classList.remove('show');
+    launchConfetti();
+  } else {
+    document.getElementById('celebEmoji').textContent='\uD83E\uDD8E';
+    document.getElementById('celebTitle').textContent='Keep Going!';
+    document.getElementById('celebMsg').textContent=correct+' out of 20. Every chameleon keeps practicing — try again!';
+    document.getElementById('ribbonWrap').classList.remove('show');
+  }
+  ov.classList.add('show');
+}
+
+function launchConfetti(){
+  const colors=['#f5c842','#ff6b6b','#4ecb8d','#5bb8f5','#a855f7','#ff9f43','#4caf50'];
+  for(let i=0;i<70;i++)setTimeout(()=>{
+    const el=document.createElement('div');el.className='cf-piece';
+    el.style.left=Math.random()*100+'vw';
+    el.style.background=colors[0|Math.random()*colors.length];
+    el.style.width=(Math.random()*8+6)+'px';el.style.height=(Math.random()*8+6)+'px';
+    el.style.animationDuration=(Math.random()*2+2)+'s';
+    el.style.borderRadius=Math.random()>.5?'50%':'2px';
+    document.body.appendChild(el);setTimeout(()=>el.remove(),4500);
+  },i*55);
+}
+
+function restartGame(){
+  document.getElementById('celebration').classList.remove('show');
+  document.getElementById('ribbonWrap').classList.remove('show');
+  startGame();
+}
+
+// ── Stars ─────────────────────────────────────────────────────────────────
+(function(){
+  const c=document.getElementById('stars');
+  for(let i=0;i<60;i++){
+    const s=document.createElement('div');s.className='star';
+    const sz=Math.random()*2+1;s.style.width=sz+'px';s.style.height=sz+'px';
+    s.style.left=Math.random()*100+'vw';s.style.top=Math.random()*100+'vh';
+    s.style.animationDuration=(Math.random()*3+2)+'s';s.style.animationDelay=(Math.random()*4)+'s';
+    c.appendChild(s);
+  }
+})();
+
+startGame();
+</script>
+</body>
+</html>
